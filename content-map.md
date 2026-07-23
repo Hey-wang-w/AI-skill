@@ -77,6 +77,8 @@
 | 试卷头格式 | quiz-paper.md模板 + quiz_pull.py生成逻辑 | 01文档试卷头章节、SKILL.md | 修改试卷头需同步模板和quiz_pull.py |
 | **出题自检清单** | assets/checklists/question-checklist.md | quiz_pull.py（read_checklist动态读取）、出题指令.txt（脚本嵌入）、SKILL.md步骤A6 | ✅ 从config.CHECKLIST_QUESTION动态读取，修改checklist文件即可，无需改代码 |
 | QUIZ_ENDING结尾语 | config.QUIZ_ENDING | quiz-paper.md模板、01文档 | |
+| **出题优先级顺序** | quiz_pull.py filter_today()函数 | README.md优先级表、SKILL.md步骤A1、02文档FIX#6 | ⚠️ P0级规则！顺序为P1薄弱点到期→P2到期常规→P3新知识点→P4未到期巩固(仅题量不足时)→P5随机巩固(仍不足时)。P4/P5必须有`if len(result) < MIN_QUESTIONS`条件。修改顺序需同步README优先级表+check_consistency.py校验 |
+| **自我迭代-经验提取** | SKILL.md第十一章+流程E步骤E8 | best-practices.md（成功经验）、risk-alerts.md（失败教训）、quiz-experience.md（核心规则）、CHANGELOG.md（记录） | 流程E每次执行后触发E8。成功修复→BP-XXX入best-practices；失败/引入新问题→RISK-XXX入risk-alerts；新铁律→quiz-experience+SKILL铁律+check_consistency.py。新经验标注[观察期]，3次验证后改✅已固化 |
 
 ---
 
@@ -88,12 +90,13 @@
 | 类型A：推进轮次规则 | 02文档 + quiz_push.py代码 | config.CUMULATIVE（间隔天数） | 修改间隔天数改config.CUMULATIVE |
 | 类型B：不推进轮次 | 02文档 + quiz_push.py代码 | | |
 | 类型C：答错归零+薄弱点 | 02文档 + quiz_push.py代码 | | |
-| FIX#1防回溯日期公式 | quiz_push.py代码 | 02文档（文字说明） | 修改公式需同步02文档 |
+| FIX#1防回溯日期公式 | quiz_push.py代码 | 02文档（文字说明） | 修改公式需同步02文档；FIX#7修正了下标（CUMULATIVE[new_round]） |
 | FIX#2薄弱点解除条件 | config.WEAK_REMOVE_THRESHOLD + quiz_push.py | 02文档 | 阈值在config.py定义；正则REGEX_CONSECUTIVE_CORRECT必须匹配LOG_WEAK_CORRECT格式 |
 | FIX#3[重置]标记规则 | config.RESET_MARK + quiz_push.py | 02文档 | 修改标记字符串改config.RESET_MARK |
 | FIX#4随机巩固不推进 | quiz_push.py代码 | 02文档 | |
 | FIX#5去重 | quiz_pull.py代码 | 02文档 | |
 | FIX#6优先级截断顺序 | quiz_pull.py代码 | 02文档 | |
+| FIX#7下标修正 | quiz_push.py代码 | 02文档 | CUMULATIVE下标从new_round-1改为new_round；`< today`改为`<= today` |
 | 掌握状态流转（⚪→🟡→🟢/🔴） | config.STATUS_* + quiz_push.py代码 | 02文档、飞书"掌握状态"字段选项 | 新增状态需更新config.STATUS_VALUES+飞书字段+代码+文档 |
 | grading.json格式 | TEMPLATE_GRADING_RESULT + config.GRADING_FIELD_* | SKILL.md步骤B3、02文档、quiz_push.py解析逻辑 | 修改字段名改config.GRADING_FIELD_*即可 |
 | 批改总结格式 | grading-summary.md模板 | SKILL.md步骤B5 | |
@@ -157,8 +160,8 @@
 
 ```
 ai-quiz-system/
-├── SKILL.md                              # 🔴 主指令入口（含修改协议第九章）
-├── check_consistency.py                  # 🔴 一致性校验脚本（55+项检查）
+├── SKILL.md                              # 🔴 主指令入口（含修改协议第十章）
+├── check_consistency.py                  # 🔴 一致性校验脚本（78+项检查）
 ├── content-map.md                        # 🔴 本文件（映射表）
 ├── scripts/
 │   ├── config.py                         # 🔴🔴 SSOT：所有常量唯一来源（改常量只改这里）
@@ -236,8 +239,9 @@ ai-quiz-system/
 5. 逐一修改所有引用位置（脚本import自动同步，文档需手动改）
 6. 代码中不要硬编码中文字符串/数字，全部引用config常量
 7. quiz_pull.py的自检清单从checklist文件动态读取，不要硬编码副本
-8. **自指同步**：如果修改了三位一体本身，按第九章映射表同步更新所有关联位置
+8. **自指同步**：如果修改了三位一体本身，按第十章映射表同步更新所有关联位置
 9. **新内容纳入**：如果是新增功能/内容，按第十章"新增功能纳入流程"逐步纳入防护体系
+10. **经验提取**：修改完成后，按流程E步骤E8提取经验（成功做法→best-practices.md，失败教训→risk-alerts.md，新规则→quiz-experience.md+铁律），详见第十一章
 
 ### 修改后
 10. **运行自动校验**：执行 `python ai-quiz-system/check_consistency.py`
@@ -252,6 +256,7 @@ ai-quiz-system/
 
 | 命令 | 作用 | 什么时候用 |
 |------|------|-----------|
-| `python check_consistency.py` | 全量一致性检查（60+项） | 修改完成后必跑；自指修改后跑两次 |
-| `python check_consistency.py where 关键词` | 搜索关键词在所有文件中的位置 | 修改前，找所有需要改的地方 |
+| `python check_consistency.py` | 全量一致性检查（78+项） | 修改完成后必跑；自指修改后跑两次 |
+| `python check_consistency.py where 关键词` | 搜索关联位置 | 修改前定位所有引用 |
+| `python check_consistency.py linkage` | 联动检查：发现文件间读写断裂 | 新增文件/新增经验后必跑 |
 | `python check_consistency.py help` | 显示帮助 | 忘记命令时 |

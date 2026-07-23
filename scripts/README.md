@@ -51,7 +51,7 @@ python d:\AI\AI学习内容记忆测试\ai-quiz-system\scripts\quiz_push.py
 ## ⚠️ 重要提示
 
 1. **必须执行脚本**：出题前必须跑quiz_pull.py，批改后必须跑quiz_push.py，不得手动计算轮次和日期
-2. **不要随意修改脚本逻辑**：脚本包含FIX#1~#6保护逻辑，修改逻辑会导致复习间隔计算错误
+2. **不要随意修改脚本逻辑**：脚本包含FIX#1~#7保护逻辑，修改逻辑会导致复习间隔计算错误
 3. **修改配置只改config.py**：所有常量（路径、标签、阈值、字段名等）都定义在config.py中，不要在quiz_pull.py/quiz_push.py中硬编码
 4. **文件路径**：脚本读取和生成的文件都在 `d:\AI\AI学习内容记忆测试\ai-quiz-system\` 目录下，不在scripts目录下，也不在项目根目录
 5. **执行顺序**：必须是 quiz_pull.py → AI出题 → 用户作答 → AI批改写grading.json → quiz_push.py，不能颠倒

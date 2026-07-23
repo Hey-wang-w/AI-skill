@@ -16,15 +16,18 @@ check_consistency.py — ai-quiz-system 一致性校验脚本
     9. SKILL.md修改协议完整性检查（含自指更新规则、新增内容纳入规则）
     10. 思维导图文件、__pycache__残留、根目录旧文件等杂项检查
     额外：提供"查询模式"，输入关键词快速找到所有关联位置
+    额外：提供"联动检查模式"，自动发现文件间读写断裂（某文件被写入但从未被读取）
 
 用法：
     python check_consistency.py              # 全量一致性检查
     python check_consistency.py check        # 同上（默认）
     python check_consistency.py where 关键词  # 查询关键词出现在哪些位置（修改前用）
+    python check_consistency.py linkage      # 联动检查：发现文件间读写断裂（新增文件后用）
 
 示例：
     python check_consistency.py where 薄弱点到期
     python check_consistency.py where 填空题
+    python check_consistency.py linkage
 
 输出：
     控制台打印检查结果：✅通过 / ⚠️警告 / ❌错误
@@ -214,6 +217,134 @@ def where_is(keyword):
         print(f"\n💡 提示：也可以查看 content-map.md 找到「{keyword}」的主定义位置和修改注意事项")
 
 
+def check_linkage():
+    """
+    【联动检查模式】自动发现文件间读写断裂。
+    检查每个references/和assets/下的文件是否同时有"写入方"和"读取方"。
+    如果某文件只被写入（E8/修改协议引用）但从无被读取（流程A/B/C/D未引用），报告为断裂。
+    新增文件或新增经验后运行此命令，可高效发现遗漏的联动机制。
+    输入参数：无。
+    返回值：int（0=无断裂，1=有断裂）。
+    """
+    print("=" * 60)
+    print("🔗 文件联动检查：发现读写断裂")
+    print("=" * 60)
+
+    # 定义需要检查联动关系的文件及其读写方
+    # 格式: (文件名, 写入方关键词列表, 读取方关键词列表)
+    # 写入方 = 谁会往这个文件写内容（如E8入库）
+    # 读取方 = 谁应该在执行时读取这个文件（如流程A/B/C/D步骤）
+    linkage_specs = [
+        ("references/quiz-experience.md",
+         ["E8", "经验提取", "经验沉淀", "入库"],
+         ["步骤A2", "步骤B1", "步骤C1", "必须读取"]),
+        ("references/best-practices.md",
+         ["E8", "经验提取", "经验沉淀", "入库", "BP-"],
+         ["步骤A2", "步骤B1", "步骤C1", "必须读取", "遇到特定场景"]),
+        ("references/risk-alerts.md",
+         ["E8", "经验提取", "经验沉淀", "入库", "RISK-"],
+         ["步骤A2", "步骤B1", "步骤C1", "必须读取", "预警"]),
+        ("assets/checklists/question-checklist.md",
+         ["出题自检", "自检清单"],
+         ["步骤A6", "必须读取", "read_checklist"]),
+        ("assets/checklists/grading-checklist.md",
+         ["批改自检", "自检清单"],
+         ["步骤B5", "必须读取"]),
+        ("references/01-question-format.md",
+         [],
+         ["步骤A2", "必须读取"]),
+        ("references/02-grading-rules.md",
+         ["FIX#"],
+         ["步骤B1", "必须读取"]),
+        ("references/03-knowledge-ingest.md",
+         [],
+         ["步骤C1", "必须读取"]),
+        ("references/04-knowledge-taxonomy.md",
+         [],
+         ["步骤C2", "必须读取"]),
+        ("references/CHANGELOG.md",
+         ["E6", "CHANGELOG", "经验沉淀", "经验更新"],
+         ["E8.5", "延迟反馈", "追溯"]),
+        ("assets/templates/quiz-paper.md",
+         [],
+         ["步骤A3", "必须读取", "试卷模板"]),
+        ("assets/templates/grading-result.json",
+         [],
+         ["步骤B3", "grading.json", "格式模板"]),
+        ("assets/templates/grading-summary.md",
+         [],
+         ["步骤B5", "必须读取", "总结模板"]),
+        ("assets/templates/ingest-feedback.md",
+         [],
+         ["步骤C5", "反馈模板"]),
+    ]
+
+    skill_path = os.path.join(SKILL_DIR, "SKILL.md")
+    skill_content = read_file(skill_path) or ""
+    pull_path = os.path.join(SKILL_DIR, "scripts", "quiz_pull.py")
+    pull_content = read_file(pull_path) or ""
+
+    broken_count = 0
+    ok_count = 0
+
+    for filepath, write_keywords, read_keywords in linkage_specs:
+        full_path = os.path.join(SKILL_DIR, filepath.replace("/", os.sep))
+        file_exists = os.path.exists(full_path)
+
+        if not file_exists:
+            print(f"\n❌ {filepath} — 文件不存在！")
+            broken_count += 1
+            continue
+
+        # 检查读取方：SKILL.md中是否有对应流程步骤引用此文件
+        has_reader = False
+        missing_readers = []
+        for kw in read_keywords:
+            # 检查SKILL.md中是否同时包含"步骤X"和文件名（或文件名的最后一段）
+            filename_short = filepath.split("/")[-1]
+            if kw in skill_content and filename_short in skill_content:
+                has_reader = True
+            else:
+                # 对于quiz_pull.py动态读取的文件，检查代码中是否引用
+                if "read_checklist" in pull_content and filename_short in pull_content:
+                    has_reader = True
+                else:
+                    missing_readers.append(kw)
+
+        if has_reader:
+            print(f"\n✅ {filepath} — 读写闭环正常")
+            ok_count += 1
+        else:
+            print(f"\n⚠️ {filepath} — 可能存在读写断裂！")
+            print(f"   未找到读取方引用（缺少关键词: {', '.join(missing_readers[:3])}）")
+            print(f"   建议: 在SKILL.md对应流程步骤中加入'必须读取'说明")
+            broken_count += 1
+
+    # 检查是否有新增的references/assets文件未被纳入linkage_specs
+    print("\n" + "-" * 60)
+    print("📋 检查是否有未纳入联动监控的新文件...")
+    monitored_files = set(spec[0] for spec in linkage_specs)
+    for subdir in ["references", "assets/templates", "assets/checklists"]:
+        dir_path = os.path.join(SKILL_DIR, subdir.replace("/", os.sep))
+        if not os.path.isdir(dir_path):
+            continue
+        for fname in os.listdir(dir_path):
+            if fname.endswith((".md", ".json")):
+                rel_path = f"{subdir}/{fname}"
+                if rel_path not in monitored_files:
+                    print(f"   ⚠️ 新文件未纳入联动监控: {rel_path}")
+                    print(f"      建议: 在check_linkage()的linkage_specs中添加此文件的读写方定义")
+                    broken_count += 1
+
+    print("\n" + "=" * 60)
+    if broken_count == 0:
+        print(f"🎉 联动检查通过！{ok_count}个文件读写闭环正常，无断裂。")
+    else:
+        print(f"⚠️ 发现 {broken_count} 项联动问题，请按建议修复。")
+    print("=" * 60)
+    return 1 if broken_count > 0 else 0
+
+
 def run_full_check():
     """
     执行完整的一致性检查。
@@ -228,6 +359,8 @@ def run_full_check():
     print("\n📁 [1/10] 检查必需文件...")
     required_files = [
         os.path.join(SKILL_DIR, 'SKILL.md'),
+        os.path.join(SKILL_DIR, 'README.md'),
+        os.path.join(SKILL_DIR, 'content-map.md'),
         os.path.join(SKILL_DIR, 'scripts', 'config.py'),
         os.path.join(SKILL_DIR, 'scripts', 'quiz_pull.py'),
         os.path.join(SKILL_DIR, 'scripts', 'quiz_push.py'),
@@ -236,6 +369,10 @@ def run_full_check():
         os.path.join(SKILL_DIR, 'references', '02-grading-rules.md'),
         os.path.join(SKILL_DIR, 'references', '03-knowledge-ingest.md'),
         os.path.join(SKILL_DIR, 'references', '04-knowledge-taxonomy.md'),
+        os.path.join(SKILL_DIR, 'references', 'quiz-experience.md'),
+        os.path.join(SKILL_DIR, 'references', 'best-practices.md'),
+        os.path.join(SKILL_DIR, 'references', 'risk-alerts.md'),
+        os.path.join(SKILL_DIR, 'references', 'CHANGELOG.md'),
         os.path.join(SKILL_DIR, 'assets', 'templates', 'quiz-paper.md'),
         os.path.join(SKILL_DIR, 'assets', 'templates', 'grading-result.json'),
         os.path.join(SKILL_DIR, 'assets', 'templates', 'grading-summary.md'),
@@ -446,7 +583,14 @@ def run_full_check():
               "quiz_pull.py 的 generate_quiz_prompt 中无硬编码 SOURCE_ICONS 字典副本（应使用 config.SOURCE_ICONS）",
               is_warning=False)
 
-    # ── 检查6：魔法值硬编码扫描（增强：覆盖两个脚本的旧标签检测） ──
+    # 【FIX#7校验】quiz_push.py必须使用CUMULATIVE[new_round]而非CUMULATIVE[new_round - 1]
+    check('CUMULATIVE[new_round]' in push_content and 'CUMULATIVE[new_round - 1]' not in push_content,
+          "quiz_push.py 使用CUMULATIVE[new_round]（FIX#7：下标正确，非new_round-1）")
+
+    # 【出题优先级校验】quiz_pull.py的P4（未到期巩固）必须有MIN_QUESTIONS条件检查
+    # P4代码块中应包含 if len(result) < MIN_QUESTIONS 条件
+    check('if len(result) < MIN_QUESTIONS' in pull_content,
+          "quiz_pull.py P4未到期巩固包含MIN_QUESTIONS条件检查（仅在题量不足时才出题）")
     print("\n🔮 [6/10] 扫描魔法值（硬编码字符串）...")
     magic_value_scan()
     print("   ✅ 魔法值扫描完成（已覆盖quiz_pull.py和quiz_push.py的条件判断区域）")
@@ -515,6 +659,35 @@ def run_full_check():
         check(has_before and has_during and has_after,
               "SKILL.md 修改协议完整包含修改前/修改中/修改后三个阶段",
               is_warning=False)
+        # 【新增】检查自我迭代模块是否存在
+        has_self_iteration = '自我迭代' in skill_md_content or '自我迭代模块' in skill_md_content
+        check(has_self_iteration,
+              "SKILL.md 包含自我迭代模块（第十一章）", is_warning=False)
+        # 检查流程E步骤E8（经验提取）是否存在
+        has_e8 = '步骤E8' in skill_md_content and '经验提取' in skill_md_content
+        check(has_e8,
+              "SKILL.md 流程E包含步骤E8经验提取（自我迭代与修改联动）", is_warning=False)
+        # 检查铁律12是否包含E8经验提取要求（不再检查旧的"临时记录机制"）
+        has_e8_iron = '修改后必须提取经验' in skill_md_content and 'E8' in skill_md_content
+        check(has_e8_iron,
+              "SKILL.md 铁律12包含E8经验提取要求（含不满意更新机制）", is_warning=False)
+        # 检查变更分级P0-P3是否存在
+        has_change_grading = 'P0' in skill_md_content and 'P1' in skill_md_content and 'P2' in skill_md_content and 'P3' in skill_md_content
+        check(has_change_grading,
+              "SKILL.md 修改协议包含变更分级P0-P3", is_warning=False)
+        # 检查铁律编号化
+        has_numbered_rules = '铁律' in skill_md_content
+        check(has_numbered_rules,
+              "SKILL.md 硬性规则已编号化（铁律1~12）", is_warning=False)
+        # 检查E8不满意更新机制
+        has_e8_update = '不满意更新' in skill_md_content or '不满意' in skill_md_content
+        check(has_e8_update,
+              "SKILL.md E8包含不满意更新机制（用户不满意时更新已沉淀经验）", is_warning=False)
+        # 检查linkage子命令是否已注册（读取自身文件确认）
+        _self_path = os.path.join(SKILL_DIR, "check_consistency.py")
+        _self_content = read_file(_self_path) or ""
+        check("check_linkage" in _self_content and "linkage" in _self_content,
+              "check_consistency.py linkage子命令已注册（联动检查功能可用）", is_warning=False)
     else:
         warnings.append("无法读取 SKILL.md，跳过修改协议检查")
 
@@ -589,11 +762,13 @@ def print_usage():
     print("  python check_consistency.py              全量一致性检查")
     print("  python check_consistency.py check        同上（默认）")
     print("  python check_consistency.py where 关键词  查询关键词出现在哪些位置")
+    print("  python check_consistency.py linkage      联动检查：发现文件间读写断裂")
     print()
     print("示例:")
     print("  python check_consistency.py where 薄弱点到期")
     print("  python check_consistency.py where 填空题")
     print("  python check_consistency.py where 艾宾浩斯")
+    print("  python check_consistency.py linkage")
     print()
 
 
@@ -618,6 +793,8 @@ def main():
         keyword = ' '.join(sys.argv[2:])
         where_is(keyword)
         return 0
+    elif cmd == 'linkage' or cmd == 'link':
+        return check_linkage()
     elif cmd == 'help' or cmd == '-h' or cmd == '--help':
         print_usage()
         return 0

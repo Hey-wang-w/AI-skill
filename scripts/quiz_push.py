@@ -135,17 +135,17 @@ def compute_push_patch(q, correct, today, reason=""):
                 fields[FIELD_NEXT_DATE] = None  # 已掌握不再安排复习
             else:
                 fields[FIELD_STATUS] = STATUS_LEARNING
-                # FIX#1 防回溯加速公式：
-                # 基准日期 = 添加日期 + CUMULATIVE[新轮次-1]
-                # 若基准日期 < 今天 → 使用今天 + CUMULATIVE[新轮次-1]
+                # FIX#1 防回溯加速公式（FIX#7修复：下标从 new_round-1 改为 new_round）：
+                # 基准日期 = 添加日期 + CUMULATIVE[新轮次]（取下一轮的间隔天数，而非刚完成轮次的）
+                # 若基准日期 <= 今天 → 使用今天 + CUMULATIVE[新轮次]（防止延迟复习导致下次立即到期）
                 if add_date:
-                    base = add_date + timedelta(days=CUMULATIVE[new_round - 1])
-                    if base < today:
-                        base = today + timedelta(days=CUMULATIVE[new_round - 1])
+                    base = add_date + timedelta(days=CUMULATIVE[new_round])
+                    if base <= today:
+                        base = today + timedelta(days=CUMULATIVE[new_round])
                     fields[FIELD_NEXT_DATE] = base.strftime("%Y-%m-%d 00:00:00")
                 else:
                     # 兜底：用今天算
-                    fields[FIELD_NEXT_DATE] = (today + timedelta(days=CUMULATIVE[new_round - 1])).strftime("%Y-%m-%d 00:00:00")
+                    fields[FIELD_NEXT_DATE] = (today + timedelta(days=CUMULATIVE[new_round])).strftime("%Y-%m-%d 00:00:00")
 
             # 薄弱点处理（仅原为薄弱点的）
             if was_weak:
