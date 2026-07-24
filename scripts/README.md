@@ -11,6 +11,7 @@
 |-----------|---------|------|---------|---------|
 | `quiz_pull.py` | **流程A（出题测验）第一步必须执行** | 从飞书拉取所有知识点，按5级优先级筛选今日待考题目，生成题目清单和出题指令 | 无（自动从飞书读取） | `d:\AI\AI学习内容记忆测试\ai-quiz-system\today_quiz.json`<br>`d:\AI\AI学习内容记忆测试\ai-quiz-system\出题指令.txt` |
 | `quiz_push.py` | **流程B（批改写回）第四步必须执行** | 读取批改结果，按艾宾浩斯规则计算更新，批量写回飞书多维表格 | `today_quiz.json`（pull生成）<br>`grading.json`（AI生成） | 直接写回飞书，控制台打印总结 |
+| `reset_all.py` | **流程F（知识库重置）第二步执行** | 重置所有知识点学习状态为初始值（用于测试） | 无（自动从飞书读取） | 直接写回飞书，控制台打印总结 |
 | `config.py` | **（配置文件，不直接执行）** | 全局共享配置（单一事实来源SSOT），所有常量都定义在这里 | — | — |
 
 ---
@@ -25,6 +26,9 @@ python d:\AI\AI学习内容记忆测试\ai-quiz-system\scripts\quiz_pull.py
 
 # 写回批改结果（必须先生成grading.json）
 python d:\AI\AI学习内容记忆测试\ai-quiz-system\scripts\quiz_push.py
+
+# 重置知识库（⚠️高危，需先AskUserQuestion确认）
+python d:\AI\AI学习内容记忆测试\ai-quiz-system\scripts\reset_all.py
 ```
 
 ### 可选参数
@@ -36,6 +40,10 @@ python d:\AI\AI学习内容记忆测试\ai-quiz-system\scripts\quiz_push.py
 **quiz_push.py：**
 - `--date 2026-07-18`：指定测验日期（默认今天）
 - `--dry-run`：只计算不写飞书，用于调试测试
+
+**reset_all.py：**
+- `--date 2026-07-23`：重置后下次复习日期（默认今天）
+- `--dry-run`：只统计记录数，不实际修改
 
 ---
 

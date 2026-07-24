@@ -138,8 +138,8 @@ def magic_value_scan():
          "in判断中包含了旧标签'到期'"),
     ]
 
-    # 只扫描两个核心脚本
-    for script_name in ['quiz_pull.py', 'quiz_push.py']:
+    # 只扫描核心脚本
+    for script_name in ['quiz_pull.py', 'quiz_push.py', 'reset_all.py']:
         script_path = os.path.join(SKILL_DIR, 'scripts', script_name)
         content = read_file(script_path)
         if not content:
@@ -324,6 +324,7 @@ def check_linkage():
     print("\n" + "-" * 60)
     print("📋 检查是否有未纳入联动监控的新文件...")
     monitored_files = set(spec[0] for spec in linkage_specs)
+    # 监控references/和assets/下的文档/模板/清单文件
     for subdir in ["references", "assets/templates", "assets/checklists"]:
         dir_path = os.path.join(SKILL_DIR, subdir.replace("/", os.sep))
         if not os.path.isdir(dir_path):
@@ -334,6 +335,16 @@ def check_linkage():
                 if rel_path not in monitored_files:
                     print(f"   ⚠️ 新文件未纳入联动监控: {rel_path}")
                     print(f"      建议: 在check_linkage()的linkage_specs中添加此文件的读写方定义")
+                    broken_count += 1
+    # 监控scripts/下的Python脚本（config.py是配置模块，不算独立脚本）
+    scripts_dir = os.path.join(SKILL_DIR, "scripts")
+    monitored_scripts = {"config.py", "README.md"}
+    if os.path.isdir(scripts_dir):
+        for fname in os.listdir(scripts_dir):
+            if fname.endswith(".py") and fname not in monitored_scripts:
+                if fname not in skill_content:
+                    print(f"   ⚠️ 新脚本未在SKILL.md中引用: scripts/{fname}")
+                    print(f"      建议: 在SKILL.md对应流程步骤中加入'必须执行'说明，并在第九章路径表中添加条目")
                     broken_count += 1
 
     print("\n" + "=" * 60)
@@ -364,6 +375,7 @@ def run_full_check():
         os.path.join(SKILL_DIR, 'scripts', 'config.py'),
         os.path.join(SKILL_DIR, 'scripts', 'quiz_pull.py'),
         os.path.join(SKILL_DIR, 'scripts', 'quiz_push.py'),
+        os.path.join(SKILL_DIR, 'scripts', 'reset_all.py'),
         os.path.join(SKILL_DIR, 'scripts', 'README.md'),
         os.path.join(SKILL_DIR, 'references', '01-question-format.md'),
         os.path.join(SKILL_DIR, 'references', '02-grading-rules.md'),
@@ -593,7 +605,7 @@ def run_full_check():
           "quiz_pull.py P4未到期巩固包含MIN_QUESTIONS条件检查（仅在题量不足时才出题）")
     print("\n🔮 [6/10] 扫描魔法值（硬编码字符串）...")
     magic_value_scan()
-    print("   ✅ 魔法值扫描完成（已覆盖quiz_pull.py和quiz_push.py的条件判断区域）")
+    print("   ✅ 魔法值扫描完成（已覆盖quiz_pull.py、quiz_push.py、reset_all.py的条件判断区域）")
 
     # ── 检查7：【新增】REGEX_CONSECUTIVE_CORRECT与LOG格式一致性检查 ──
     print("\n🔍 [7/10] 检查正则与日志格式一致性...")
@@ -662,7 +674,7 @@ def run_full_check():
         # 【新增】检查自我迭代模块是否存在
         has_self_iteration = '自我迭代' in skill_md_content or '自我迭代模块' in skill_md_content
         check(has_self_iteration,
-              "SKILL.md 包含自我迭代模块（第十一章）", is_warning=False)
+              "SKILL.md 包含自我迭代模块（第十二章）", is_warning=False)
         # 检查流程E步骤E8（经验提取）是否存在
         has_e8 = '步骤E8' in skill_md_content and '经验提取' in skill_md_content
         check(has_e8,
@@ -671,6 +683,10 @@ def run_full_check():
         has_e8_iron = '修改后必须提取经验' in skill_md_content and 'E8' in skill_md_content
         check(has_e8_iron,
               "SKILL.md 铁律12包含E8经验提取要求（含不满意更新机制）", is_warning=False)
+        # 检查铁律13：高危操作必须确认
+        has_iron_law_13 = '高危操作必须确认' in skill_md_content or '高危操作必须前置' in skill_md_content
+        check(has_iron_law_13,
+              "SKILL.md 铁律13包含高危操作必须确认要求", is_warning=False)
         # 检查变更分级P0-P3是否存在
         has_change_grading = 'P0' in skill_md_content and 'P1' in skill_md_content and 'P2' in skill_md_content and 'P3' in skill_md_content
         check(has_change_grading,
@@ -678,7 +694,7 @@ def run_full_check():
         # 检查铁律编号化
         has_numbered_rules = '铁律' in skill_md_content
         check(has_numbered_rules,
-              "SKILL.md 硬性规则已编号化（铁律1~12）", is_warning=False)
+              "SKILL.md 硬性规则已编号化（铁律1~13）", is_warning=False)
         # 检查E8不满意更新机制
         has_e8_update = '不满意更新' in skill_md_content or '不满意' in skill_md_content
         check(has_e8_update,

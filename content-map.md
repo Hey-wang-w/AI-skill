@@ -160,13 +160,14 @@
 
 ```
 ai-quiz-system/
-├── SKILL.md                              # 🔴 主指令入口（含修改协议第十章）
-├── check_consistency.py                  # 🔴 一致性校验脚本（78+项检查）
+├── SKILL.md                              # 🔴 主指令入口（含修改协议第十一章）
+├── check_consistency.py                  # 🔴 一致性校验脚本（82+项检查）
 ├── content-map.md                        # 🔴 本文件（映射表）
 ├── scripts/
 │   ├── config.py                         # 🔴🔴 SSOT：所有常量唯一来源（改常量只改这里）
 │   ├── quiz_pull.py                      # 出题筛选+出题指令生成（动态读取checklist）
 │   ├── quiz_push.py                      # 批改+艾宾浩斯计算+飞书写回
+│   ├── reset_all.py                      # 重置所有知识点状态（流程F，⚠️需AskUserQuestion确认）
 │   └── README.md                         # 脚本说明文档
 ├── references/
 │   ├── 01-question-format.md             # 出题格式规则
@@ -199,10 +200,10 @@ ai-quiz-system/
 | 修改对象 | 需要同步更新的位置 | 校验方式 |
 |---------|------------------|---------|
 | **config.py（新增常量）** | ①content-map.md第一章常量表添加一行 ②check_consistency.py检查2的required_constants列表添加常量名 | check_consistency.py检查2自动验证常量存在 |
-| **config.py（修改路径常量）** | ①SKILL.md第七章路径速查表 ②content-map.md第八章文件清单 | check_consistency.py检查1验证文件存在 |
-| **content-map.md（新增章节/表格）** | ①SKILL.md第九章引用是否正确 ②check_consistency.py是否需要新增对应检查项 | 人工核对+check_consistency.py检查9 |
+| **config.py（修改路径常量）** | ①SKILL.md第九章路径速查表 ②content-map.md第八章文件清单 | check_consistency.py检查1验证文件存在 |
+| **content-map.md（新增章节/表格）** | ①SKILL.md第十一章引用是否正确 ②check_consistency.py是否需要新增对应检查项 | 人工核对+check_consistency.py检查9 |
 | **content-map.md（修改文件清单）** | ①check_consistency.py检查1的required_files列表 | check_consistency.py检查1自动验证 |
-| **check_consistency.py（新增检查项）** | ①content-map.md对应章节"修改注意事项"添加说明 ②SKILL.md第九章"修改后"部分说明（必要时） | 人工核对 |
+| **check_consistency.py（新增检查项）** | ①content-map.md对应章节"修改注意事项"添加说明 ②SKILL.md第十一章"修改后"部分说明（必要时） | 人工核对 |
 | **check_consistency.py（新增bad_pattern）** | ①content-map.md对应章节"修改注意事项"添加禁止模式说明 | 人工核对 |
 | **SKILL.md（修改流程步骤）** | ①content-map.md第九章"修改流程Checklist"同步更新步骤 | check_consistency.py检查9验证三阶段存在 |
 | **SKILL.md（新增流程E/F...）** | ①SKILL.md第二章工作流判断表添加触发词 ②配套references文档 ③配套templates/checklists ④content-map.md新增对应章节 ⑤check_consistency.py检查1添加新文件 | check_consistency.py检查9+检查1 |
@@ -217,17 +218,17 @@ ai-quiz-system/
 | 新增类型 | 纳入步骤 |
 |---------|---------|
 | **新增常量** | ①在config.py定义 ②content-map.md第一章加条目 ③check_consistency.py的required_constants加常量名 |
-| **新增规则文档（references/*.md）** | ①创建md文件 ②SKILL.md对应流程加"必须读取" ③SKILL.md第七章加路径 ④content-map.md对应章节加映射 ⑤check_consistency.py检查1加文件 |
-| **新增模板（assets/templates/*）** | ①创建模板文件 ②config.py加TEMPLATE_*路径常量 ③SKILL.md第七章加路径 ④content-map.md第八章加清单 ⑤代码中通过config常量引用路径 |
-| **新增清单（assets/checklists/*）** | ①创建checklist文件 ②config.py加CHECKLIST_*路径常量 ③SKILL.md第七章加路径 ④content-map.md第八章加清单 ⑤代码中动态读取（参考read_checklist函数），不要硬编码副本 |
-| **新增脚本（scripts/*.py）** | ①创建脚本文件 ②脚本中所有常量 `from config import` ③SKILL.md对应流程加"必须执行" ④SKILL.md第七章加路径 ⑤content-map.md第八章加清单 ⑥check_consistency.py检查1的required_files加文件 |
+| **新增规则文档（references/*.md）** | ①创建md文件 ②SKILL.md对应流程加"必须读取" ③SKILL.md第九章加路径 ④content-map.md对应章节加映射 ⑤check_consistency.py检查1加文件 |
+| **新增模板（assets/templates/*）** | ①创建模板文件 ②config.py加TEMPLATE_*路径常量 ③SKILL.md第九章加路径 ④content-map.md第八章加清单 ⑤代码中通过config常量引用路径 |
+| **新增清单（assets/checklists/*）** | ①创建checklist文件 ②config.py加CHECKLIST_*路径常量 ③SKILL.md第九章加路径 ④content-map.md第八章加清单 ⑤代码中动态读取（参考read_checklist函数），不要硬编码副本 |
+| **新增脚本（scripts/*.py）** | ①创建脚本文件 ②脚本中所有常量 `from config import` ③SKILL.md对应流程加"必须执行" ④SKILL.md第九章加路径 ⑤content-map.md第八章加清单 ⑥check_consistency.py检查1的required_files加文件 |
 | **新增流程（如流程E）** | ①SKILL.md加新流程章节 ②SKILL.md第二章判断表加触发词 ③配套references文档+模板+清单按上述步骤纳入 ④content-map.md加新章节记录关联关系 |
 
 ---
 
 ## 修改流程Checklist（零漏改标准流程）
 
-> ⚠️ 此流程已写入SKILL.md第九章"Skill修改协议"，修改Skill时AI会自动遵守。
+> ⚠️ 此流程已写入SKILL.md第十一章"Skill修改协议"，修改Skill时AI会自动遵守。
 
 ### 修改前
 1. **快速定位所有关联位置**：运行 `python ai-quiz-system/check_consistency.py where 关键词`
@@ -239,9 +240,9 @@ ai-quiz-system/
 5. 逐一修改所有引用位置（脚本import自动同步，文档需手动改）
 6. 代码中不要硬编码中文字符串/数字，全部引用config常量
 7. quiz_pull.py的自检清单从checklist文件动态读取，不要硬编码副本
-8. **自指同步**：如果修改了三位一体本身，按第十章映射表同步更新所有关联位置
+8. **自指同步**：如果修改了三位一体本身，按第九章映射表同步更新所有关联位置
 9. **新内容纳入**：如果是新增功能/内容，按第十章"新增功能纳入流程"逐步纳入防护体系
-10. **经验提取**：修改完成后，按流程E步骤E8提取经验（成功做法→best-practices.md，失败教训→risk-alerts.md，新规则→quiz-experience.md+铁律），详见第十一章
+10. **经验提取**：修改完成后，按流程E步骤E8提取经验（成功做法→best-practices.md，失败教训→risk-alerts.md，新规则→quiz-experience.md+铁律），详见第十二章
 
 ### 修改后
 10. **运行自动校验**：执行 `python ai-quiz-system/check_consistency.py`
@@ -256,7 +257,7 @@ ai-quiz-system/
 
 | 命令 | 作用 | 什么时候用 |
 |------|------|-----------|
-| `python check_consistency.py` | 全量一致性检查（78+项） | 修改完成后必跑；自指修改后跑两次 |
+| `python check_consistency.py` | 全量一致性检查（82+项） | 修改完成后必跑；自指修改后跑两次 |
 | `python check_consistency.py where 关键词` | 搜索关联位置 | 修改前定位所有引用 |
 | `python check_consistency.py linkage` | 联动检查：发现文件间读写断裂 | 新增文件/新增经验后必跑 |
 | `python check_consistency.py help` | 显示帮助 | 忘记命令时 |
