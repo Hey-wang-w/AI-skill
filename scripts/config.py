@@ -108,8 +108,9 @@ RATIO_SHORT = 1 - RATIO_CHOICE - RATIO_FILL  # 简答题自动计算剩余比例
 WEAK_REMOVE_THRESHOLD = 2
 
 # ── 填空题格式规则 ────────────────────────────────────
-# 下划线+编号的格式模板：编号前后各4条下划线
-FILL_BLANK_PATTERN = "____（{}）____"
+# 下划线+编号的格式模板：编号前后各4条下划线，整体用反引号包裹防止Markdown渲染吃掉下划线
+# ⚠️ 反引号包裹是必须的：Markdown中连续下划线____会被解析为斜体/粗体标记，导致下划线消失
+FILL_BLANK_PATTERN = "`____（{}）____`"
 # 下划线数量
 FILL_UNDERSCORE_COUNT = 4
 

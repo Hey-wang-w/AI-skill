@@ -410,10 +410,10 @@ def run_full_check():
         check(hasattr(config, 'TYPE_A_SOURCES'), "config.TYPE_A_SOURCES 已定义")
         check(hasattr(config, 'TYPE_B_SOURCES'), "config.TYPE_B_SOURCES 已定义")
         check(hasattr(config, 'FILL_BLANK_PATTERN'), "config.FILL_BLANK_PATTERN 已定义")
-        # 验证填空格式串包含前后下划线
-        expected_fill = "____（{}）____"
+        # 验证填空格式串包含反引号包裹+前后下划线（FIX#8：Markdown下划线被吃掉问题）
+        expected_fill = "`____（{}）____`"
         check(config.FILL_BLANK_PATTERN == expected_fill,
-              f"config.FILL_BLANK_PATTERN 格式正确（前后各4下划线）", is_warning=False)
+              f"config.FILL_BLANK_PATTERN 格式正确（反引号包裹+前后各4下划线）", is_warning=False)
         # 验证默认题数
         check(config.DEFAULT_MAX_QUESTIONS == 20,
               f"config.DEFAULT_MAX_QUESTIONS = 20（当前{config.DEFAULT_MAX_QUESTIONS}）")
@@ -516,14 +516,14 @@ def run_full_check():
     skill_md_for_order = read_file(os.path.join(SKILL_DIR, 'SKILL.md'))
     paper_template = read_file(os.path.join(SKILL_DIR, 'assets', 'templates', 'quiz-paper.md'))
 
-    check('____（N）____' in q_format or '____（1）____' in q_format,
-          "01-question-format.md 中填空题格式包含前后下划线", is_warning=False)
-    check('____（N）' in q_format and '____（N）____' in q_format,
-          "01-question-format.md 中同时展示错误格式和正确格式对比")
-    check('下划线前后' in q_format or '前后都有' in q_format or '前后都要' in q_format,
-          "01-question-format.md 强调下划线前后都要有")
-    check('下划线' in checklist and '前后' in checklist,
-          "出题自检清单包含下划线前后检查项")
+    check(('`____（N）____`' in q_format) or ('`____（1）____`' in q_format),
+          "01-question-format.md 中填空题格式包含反引号包裹+前后下划线", is_warning=False)
+    check(('____（N）' in q_format and '反引号' in q_format) or ('错误示例' in q_format and '反引号' in q_format),
+          "01-question-format.md 中同时展示错误格式和正确格式对比，且包含反引号包裹说明")
+    check(('下划线前后' in q_format or '前后都有' in q_format or '前后都要' in q_format) and '反引号' in q_format,
+          "01-question-format.md 强调下划线前后都要有+反引号包裹")
+    check('下划线' in checklist and ('前后' in checklist or '反引号' in checklist),
+          "出题自检清单包含下划线前后检查项+反引号包裹要求")
     # 【新增】检查题目顺序强制规则是否在所有关键位置都有
     check('不得打乱顺序' in quiz_pull_content or '严格按照' in quiz_pull_content and '顺序出题' in quiz_pull_content,
           "quiz_pull.py 出题指令中包含'不得打乱顺序'强制要求", is_warning=False)
