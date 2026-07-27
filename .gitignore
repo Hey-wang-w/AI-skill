@@ -1,0 +1,13 @@
+# Python缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 项目运行临时文件
+today_quiz.json
+grading.json
+出题指令.txt
+
+# IDE缓存
+.vscode/
+.idea/
