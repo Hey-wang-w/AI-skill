@@ -5,6 +5,60 @@
 
 ---
 
+## [4.7] - 2026-07-27
+
+### 变更等级：P1 - 7项代码质量与健壮性修复（FIX#9~#11 + 4项改进）
+
+### 问题概述
+用户代码审查发现7项问题：1项严重（lark-cli成功判定脆弱）、1项严重（随机种子不可复现）、2项中等（CUMULATIVE语义不一致、LARK路径硬编码）、3项轻微（SSOT违反、薄弱点残留、死代码）。
+
+### 变更内容
+
+1. **FIX#9：已掌握知识点自动清除薄弱点标记**（quiz_push.py）
+   - 问题：知识点晋级已掌握（轮次≥5）后，薄弱点标记可能永久残留，因为已掌握的知识点next_date=None不会被任何优先级选中出题
+   - 修复：在晋级已掌握时，若原为薄弱点则自动清除FIELD_IS_WEAK和FIELD_WEAK_DESC
+   - 薄弱点处理条件同步更新：增加`fields.get(FIELD_STATUS) != STATUS_MASTERED`判断
+
+2. **FIX#10：lark-cli成功判定改为JSON解析**（quiz_push.py）
+   - 问题：用字符串匹配`'"ok": true' in r.stdout`判定成功，不同JSON格式（空格/换行差异）下可能误判
+   - 修复：改用`json.loads(r.stdout)`解析后取`data.get("ok")`判断，带异常兜底
+
+3. **FIX#11：随机种子改为确定性种子**（quiz_pull.py）
+   - 问题：`random.seed(hash(str(today)))`受PYTHONHASHSEED影响，不同进程中结果不同
+   - 修复：改用`random.seed(today.toordinal())`，同一日期总是返回相同整数
+
+4. **CUMULATIVE语义文档统一**（config.py + 02-grading-rules.md + content-map.md + scripts/README.md + quiz_push.py注释）
+   - 问题：注释和文档称CUMULATIVE为"间隔"，但实际语义是"从添加日期起算的累计天数"
+   - 修复：所有"间隔"改为"累计天数"，代码逻辑不变（CUMULATIVE[new_round]正确）
+
+5. **LARK路径改为跨平台动态查找**（config.py + scripts/README.md）
+   - 问题：`LARK = r'C:\Users\...'`硬编码Windows路径，跨平台不可用
+   - 修复：改用`shutil.which("lark-cli") or r'C:\Users\...'`，优先动态查找，回退Windows默认路径
+
+6. **SSOT：输出字段名常量化**（config.py + quiz_pull.py + quiz_push.py）
+   - 问题：`"题号"`/`"来源标签"`/`"级别"`字符串字面量散落在两个脚本中
+   - 修复：在config.py新增`OUTPUT_QNO`/`OUTPUT_SOURCE_LABEL`/`OUTPUT_LEVEL`常量，两个脚本通过import引用
+   - 同步更新check_consistency.py的required_constants和content-map.md常量表
+
+7. **删除死代码**（quiz_push.py）
+   - 问题：`elif next_date_str == "":`分支永远不可达（fields.get返回None或非空字符串，不会是""）
+   - 修复：删除该死代码分支
+
+### 涉及文件
+- `scripts/config.py` — LARK路径、CUMULATIVE注释、新增OUTPUT_*常量
+- `scripts/quiz_push.py` — FIX#9/10、删死代码、SSOT常量引用、CUMULATIVE注释
+- `scripts/quiz_pull.py` — FIX#11、SSOT常量引用、FIX编号范围更新
+- `references/02-grading-rules.md` — FIX#9~#11规则表新增、CUMULATIVE描述更新、FIX编号范围更新
+- `content-map.md` — 新增OUTPUT_*常量条目、LARK描述更新、CUMULATIVE描述更新
+- `scripts/README.md` — LARK路径描述更新、FIX编号范围更新
+- `SKILL.md` — FIX编号范围更新
+- `check_consistency.py` — required_constants新增OUTPUT_*常量
+
+### 验证结果
+- ✅ check_consistency.py 全量校验：81项通过，0错误（OUTPUT_*常量已纳入required_constants校验）
+
+---
+
 ## [4.6] - 2026-07-26
 
 ### 变更等级：P0 - FIX#8 修复填空题下划线被Markdown吃掉的问题

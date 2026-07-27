@@ -19,10 +19,13 @@ config.py — ai-quiz-system 全局共享配置（单一事实来源 SSOT）
     - 魔法值（Magic Value）：代码中直接写死的字符串/数字，应该用本文件中的常量代替
 """
 import os
+import shutil
 
 # ── 路径配置 ──────────────────────────────────────────
-# lark-cli命令行工具的绝对路径
-LARK = r'C:\Users\Administrator\AppData\Roaming\npm\lark-cli.cmd'
+# lark-cli命令行工具的路径：优先用shutil.which动态查找（跨平台兼容），
+# 找不到时回退到Windows默认安装路径（确保现有环境不受影响）
+# shutil.which()：Python标准库函数，在系统PATH中查找可执行文件的完整路径
+LARK = shutil.which("lark-cli") or r'C:\Users\Administrator\AppData\Roaming\npm\lark-cli.cmd'
 
 # 目录结构（自动计算，无需手动修改）
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))          # scripts/目录
@@ -39,8 +42,10 @@ PROMPT_FILE = os.path.join(SKILL_DIR, '出题指令.txt')
 GRADING_FILE = os.path.join(SKILL_DIR, 'grading.json')
 
 # ── 艾宾浩斯复习间隔 ──────────────────────────────────
-# 累计间隔数组（天数，从添加日期起算）
-# 轮次0→1间隔1天，轮次1→2间隔3天，轮次2→3间隔7天，轮次3→4间隔15天，轮次4→5间隔30天
+# 累计天数数组（从添加日期起算的累计天数，非轮次间隔）
+# 含义：CUMULATIVE[i] = 第i次复习应在"添加日期 + CUMULATIVE[i]天"进行
+# 例：添加日期7/23 → 第1次复习7/24(第1天)、第2次7/26(第3天)、第3次7/30(第7天)、第4次8/7(第15天)、第5次8/22(第30天)
+# ⚠️ 这些是累计天数（从添加日期算起），不是轮次间隔天数
 # 修改此数组会改变所有知识点的复习节奏
 CUMULATIVE = [1, 3, 7, 15, 30]
 
@@ -152,6 +157,13 @@ FIELD_L2 = "L2模块"                    # 单选
 FIELD_L3 = "L3主题"                    # 单选
 FIELD_L4 = "L4章节"                    # 单选
 FIELD_TAGS = "知识标签"                # 多选
+
+# ── today_quiz.json 输出字段名（脚本自定义字段，不对应飞书原始字段） ──
+# 这些字段在quiz_pull.py生成today_quiz.json时写入，quiz_push.py读取时引用
+# 之前以字符串字面量散落在两个脚本中，现统一到config.py（SSOT原则）
+OUTPUT_QNO = "题号"                    # 数字：题目在试卷中的序号（1开始递增）
+OUTPUT_SOURCE_LABEL = "来源标签"       # 字符串：五选一来源标签（薄弱点到期/到期常规/新知识点/未到期巩固/随机巩固）
+OUTPUT_LEVEL = "级别"                  # 字符串：★★★/★★☆/★☆☆（冗余存储，便于输出时直接引用）
 
 # 所有飞书字段名元组（用于校验）
 ALL_FIELDS = (

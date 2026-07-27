@@ -19,7 +19,7 @@ quiz_pull.py — 从飞书多维表格拉取所有知识点，按5级优先级�
     - 控制台打印筛选统计
 
 术语解释：
-    - FIX#1~#7：防催熟（复习间隔过短）保护规则，本版全部保留
+    - FIX#1~#11：防催熟（复习间隔过短）保护规则+其他逻辑修复，本版全部保留
     - 催熟：复习间隔过短导致记忆效果虚高的问题
     - 配置常量全部从config.py导入，实现单一事实来源(SSOT)
     - SSOT（Single Source of Truth）：单一事实来源，即一个配置只在一处定义，其他地方引用
@@ -53,6 +53,8 @@ from config import (
     FIELD_ADD_DATE, FIELD_NEXT_DATE,
     FIELD_L0, FIELD_L1, FIELD_L2, FIELD_L3, FIELD_L4, FIELD_TAGS,
     QUESTION_TYPES, QUIZ_ENDING,
+    # 输出字段名（SSOT：从config引用，避免字符串字面量散落）
+    OUTPUT_QNO, OUTPUT_SOURCE_LABEL, OUTPUT_LEVEL,
 )
 
 # lark-cli工作目录为Skill根
@@ -268,7 +270,7 @@ def get_level(kp):
 
 def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
     """
-    按5级优先级分层筛选当日测验知识点。FIX#1~#7保护规则全部保留。
+    按5级优先级分层筛选当日测验知识点。FIX#1~#11保护规则全部保留。
 
     核心功能：
         将所有知识点按5个优先级（P1-P5）分层筛选，组成今日测验题目清单。
@@ -318,8 +320,8 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
         if source_label != SRC_RANDOM and not ONE_STAR_ACTIVE and get_level(kp) == LEVELS[2]:
             return False
         kp_out = dict(kp)
-        kp_out["来源标签"] = source_label  # 自定义输出字段，不对应飞书原始字段
-        kp_out["级别"] = get_level(kp)     # 自定义输出字段，不对应飞书原始字段
+        kp_out[OUTPUT_SOURCE_LABEL] = source_label  # 自定义输出字段，不对应飞书原始字段
+        kp_out[OUTPUT_LEVEL] = get_level(kp)     # 自定义输出字段，不对应飞书原始字段
         result.append(kp_out)
         selected_ids.add(rid)
         return True
@@ -390,7 +392,10 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
         ]
         # 同级别内随机：先按级别分组，同级别内shuffle
         learning.sort(key=level_sort_key)
-        random.seed(hash(str(today)))
+        # FIX#11：使用确定性随机种子，确保同一天多次运行结果一致
+        # 原因：hash()受PYTHONHASHSEED影响，不同Python进程中结果不同
+        # today.toordinal()：返回日期对应的proleptic Gregorian序数，同一日期总是返回相同整数
+        random.seed(today.toordinal())
         shuffled = []
         for _, group in groupby(learning, key=level_sort_key):
             group_list = list(group)
@@ -398,8 +403,8 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
             shuffled.extend(group_list)
         batch_add(shuffled, SRC_RANDOM, sort_by_level=False)
 
-    src_count = Counter(r["来源标签"] for r in result)
-    lvl_count = Counter(r["级别"] for r in result)
+    src_count = Counter(r[OUTPUT_SOURCE_LABEL] for r in result)
+    lvl_count = Counter(r[OUTPUT_LEVEL] for r in result)
 
     stats = {
         "total": len(result),
@@ -428,8 +433,8 @@ def generate_quiz_prompt(selected_kps, prompt_path, today_str):
         today_str — str，日期字符串（YYYY-MM-DD格式）。
     返回值：无（直接写入文件）。
     """
-    src_count = Counter(r["来源标签"] for r in selected_kps)
-    lvl_count = Counter(r["级别"] for r in selected_kps)
+    src_count = Counter(r[OUTPUT_SOURCE_LABEL] for r in selected_kps)
+    lvl_count = Counter(r[OUTPUT_LEVEL] for r in selected_kps)
 
     # 来源标签常量引用
     SRC_WEAK_DUE = TYPE_A_SOURCES[0]       # "薄弱点到期"
@@ -636,10 +641,10 @@ D. 用测试集反复调整模型参数，直到测试集准确率最高
         tags_str = "、".join(kp.get(FIELD_TAGS, [])) if kp.get(FIELD_TAGS) else "无"
         weak_mark = "🔥【薄弱点】" if kp.get(FIELD_IS_WEAK) else ""
         prompt_content += f"""
-### [{kp['题号']}] {kp[FIELD_KP_ID]} {weak_mark}
+### [{kp[OUTPUT_QNO]}] {kp[FIELD_KP_ID]} {weak_mark}
 - 标题：{kp[FIELD_KP_TITLE]}
-- 级别：{kp['级别']}
-- 来源：{kp['来源标签']}
+- 级别：{kp[OUTPUT_LEVEL]}
+- 来源：{kp[OUTPUT_SOURCE_LABEL]}
 - 分类：{kp.get(FIELD_L0,'')} → {kp.get(FIELD_L1,'')} → {kp.get(FIELD_L2,'')} → {kp.get(FIELD_L3,'')} → {kp.get(FIELD_L4,'')}
 - 知识标签：{tags_str}
 - 掌握状态：{kp[FIELD_STATUS]}（复习轮次：{kp[FIELD_ROUND]}）
@@ -701,18 +706,18 @@ def main():
 
     selected, stats = filter_today(records, today, args.max)
 
-    # 构建输出JSON（键名使用FIELD_*常量，保持值不变）
-    # 注意："题号"、"来源标签"、"级别"是quiz_pull自定义输出字段，不对应飞书原始字段，保持字符串字面量
+    # 构建输出JSON（键名使用FIELD_*和OUTPUT_*常量，保持值不变）
+    # 注意："题号"、"来源标签"、"级别"是quiz_pull自定义输出字段，不对应飞书原始字段，已统一到config.py的OUTPUT_*常量
     out = []
     for i, r in enumerate(selected):
         out.append({
-            "题号": i + 1,
+            OUTPUT_QNO: i + 1,
             FIELD_RECORD_ID: r[FIELD_RECORD_ID],
             FIELD_KP_ID: r.get(FIELD_KP_ID, ""),
             FIELD_KP_TITLE: r.get(FIELD_KP_TITLE, ""),
             FIELD_CORE_CONTENT: r.get(FIELD_CORE_CONTENT, ""),
-            "级别": r.get("级别", ""),
-            "来源标签": r.get("来源标签", ""),
+            OUTPUT_LEVEL: r.get(OUTPUT_LEVEL, ""),
+            OUTPUT_SOURCE_LABEL: r.get(OUTPUT_SOURCE_LABEL, ""),
             FIELD_STATUS: r.get(FIELD_STATUS, ""),
             FIELD_ROUND: r.get(FIELD_ROUND, 0),
             FIELD_IS_WEAK: r.get(FIELD_IS_WEAK, False),
@@ -751,10 +756,10 @@ def main():
 
     print(f"\n{'='*60}")
     for r in out:
-        icon = SOURCE_ICONS.get(r["来源标签"], "  ")
+        icon = SOURCE_ICONS.get(r[OUTPUT_SOURCE_LABEL], "  ")
         # 薄弱点题icon已经是🔥，mark不重复显示
         mark = "" if r["薄弱点"] and icon == "🔥" else ("🔥" if r["薄弱点"] else "  ")
-        print(f"  {r['题号']:2d}. {mark} {icon} [{r['级别']}] [{r['知识点ID']}] {r['知识点标题']}  ({r['掌握状态']} 轮次{r['复习轮次']})")
+        print(f"  {r[OUTPUT_QNO]:2d}. {mark} {icon} [{r[OUTPUT_LEVEL]}] [{r['知识点ID']}] {r['知识点标题']}  ({r['掌握状态']} 轮次{r['复习轮次']})")
 
 
 if __name__ == "__main__":

@@ -446,6 +446,8 @@ def run_full_check():
             'RESET_MARK', 'REGEX_CONSECUTIVE_CORRECT', 'QUIZ_ENDING',
             # 日志格式常量
             'LOG_WEAK_CORRECT', 'LOG_WEAK_REVIEW_CORRECT', 'LOG_WEAK_WRONG',
+            # 输出字段名常量（SSOT：today_quiz.json自定义字段）
+            'OUTPUT_QNO', 'OUTPUT_SOURCE_LABEL', 'OUTPUT_LEVEL',
         ]
         missing_constants = [c for c in required_constants if not hasattr(config, c)]
         check(len(missing_constants) == 0,

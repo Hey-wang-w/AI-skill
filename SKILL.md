@@ -104,7 +104,7 @@ description: AI知识学习记忆与测验系统。触发关键词："开始测�
 
 **步骤B1：读取批改规则+经验预警**
 - ⚠️ 必须读取：`d:\AI\AI学习内容记忆测试\ai-quiz-system\references\02-grading-rules.md`
-- 重点关注：FIX#1~#7保护规则、A/B/C三种类型的更新方式、薄弱点状态机。
+- 重点关注：FIX#1~#11保护规则、A/B/C三种类型的更新方式、薄弱点状态机。
 - ⚠️ 必须读取：`d:\AI\AI学习内容记忆测试\ai-quiz-system\references\risk-alerts.md`
 - 批改前预警：检查是否有与本次批改相关的已知风险。
 - ⚠️ 必须读取：`d:\AI\AI学习内容记忆测试\ai-quiz-system\references\quiz-experience.md`

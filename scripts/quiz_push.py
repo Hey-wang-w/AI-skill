@@ -53,6 +53,8 @@ from config import (
     RESET_MARK, REGEX_CONSECUTIVE_CORRECT,
     LOG_WEAK_CORRECT, LOG_WEAK_REVIEW_CORRECT, LOG_WEAK_WRONG,
     DATE_FORMAT,
+    # 输出字段名（SSOT：从config引用，避免字符串字面量散落）
+    OUTPUT_SOURCE_LABEL,
 )
 
 # lark-cli工作目录为Skill根
@@ -113,7 +115,7 @@ def compute_push_patch(q, correct, today, reason=""):
       reason — str，错因分析（仅答错时使用）
     返回值：dict，要写入飞书的字段键值对。
     """
-    source = q.get("来源标签", DUE_SOURCES[1])  # 默认为"到期常规"，保守处理
+    source = q.get(OUTPUT_SOURCE_LABEL, DUE_SOURCES[1])  # 默认为"到期常规"，保守处理
     cur_round = q.get(FIELD_ROUND, 0)
     was_weak = q.get(FIELD_IS_WEAK, False)
     was_status = q.get(FIELD_STATUS, "")
@@ -133,10 +135,16 @@ def compute_push_patch(q, correct, today, reason=""):
             if new_round >= 5:
                 fields[FIELD_STATUS] = STATUS_MASTERED
                 fields[FIELD_NEXT_DATE] = None  # 已掌握不再安排复习
+                # FIX#9：已掌握知识点自动清除薄弱点标记
+                # 原因：已掌握(next_date=None)的知识点不会被任何优先级选中出题，
+                # 若不清除薄弱点标记，该标记将永久残留无法通过正常复习清除
+                if was_weak:
+                    fields[FIELD_IS_WEAK] = False
+                    fields[FIELD_WEAK_DESC] = ""
             else:
                 fields[FIELD_STATUS] = STATUS_LEARNING
                 # FIX#1 防回溯加速公式（FIX#7修复：下标从 new_round-1 改为 new_round）：
-                # 基准日期 = 添加日期 + CUMULATIVE[新轮次]（取下一轮的间隔天数，而非刚完成轮次的）
+                # 基准日期 = 添加日期 + CUMULATIVE[新轮次]（取新轮次对应的累计天数，从添加日期算起）
                 # 若基准日期 <= 今天 → 使用今天 + CUMULATIVE[新轮次]（防止延迟复习导致下次立即到期）
                 if add_date:
                     base = add_date + timedelta(days=CUMULATIVE[new_round])
@@ -147,8 +155,8 @@ def compute_push_patch(q, correct, today, reason=""):
                     # 兜底：用今天算
                     fields[FIELD_NEXT_DATE] = (today + timedelta(days=CUMULATIVE[new_round])).strftime("%Y-%m-%d 00:00:00")
 
-            # 薄弱点处理（仅原为薄弱点的）
-            if was_weak:
+            # 薄弱点处理（仅原为薄弱点且未晋级已掌握的——FIX#9已在上方清除已掌握的薄弱点）
+            if was_weak and fields.get(FIELD_STATUS) != STATUS_MASTERED:
                 new_desc = weak_desc + "\n" + LOG_WEAK_CORRECT.format(today.strftime('%Y-%m-%d'))
                 fields[FIELD_WEAK_DESC] = new_desc
                 # 统计[重置]之后连续到期答对次数
@@ -212,7 +220,17 @@ def call_upsert(record_id, fields):
         "--json", payload
     ]
     r = subprocess.run(cmd, cwd=CWD, capture_output=True, text=True, encoding="utf-8")
-    ok = r.returncode == 0 and '"ok": true' in r.stdout and '"created":true' not in r.stdout
+    # FIX#10：使用JSON解析代替字符串匹配判定lark-cli成功
+    # 原因：字符串匹配'"ok": true'在不同JSON格式（空格/换行差异）下可能误判
+    # json.loads()：将JSON字符串解析为Python字典，确保准确提取ok字段的布尔值
+    if r.returncode != 0:
+        ok = False
+    else:
+        try:
+            result = json.loads(r.stdout)
+            ok = result.get("ok", False) is True
+        except (json.JSONDecodeError, ValueError):
+            ok = False
     return ok, r.stdout, r.stderr
 
 
@@ -271,7 +289,7 @@ def main():
             print(f"第{num}题 ❓ 未在 today_quiz.json 中找到，跳过")
             continue
         q = by_num[num]
-        source = q.get("来源标签", DUE_SOURCES[1])
+        source = q.get(OUTPUT_SOURCE_LABEL, DUE_SOURCES[1])
         was_weak = q.get(FIELD_IS_WEAK, False)
         was_status = q.get(FIELD_STATUS, "")
 
@@ -326,8 +344,6 @@ def main():
                     next_date_str = str(orig_next)[:10] + "(不变)"
                 else:
                     next_date_str = "(不变)"
-            elif next_date_str == "":
-                next_date_str = "(不变)"
             elif isinstance(next_date_str, str) and len(next_date_str) >= 10:
                 next_date_str = next_date_str[:10]
 

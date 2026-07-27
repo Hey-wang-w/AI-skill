@@ -21,11 +21,11 @@
 
 | 常量名 | 含义 | 主定义位置 | 引用位置 | 自动化 |
 |-------|------|-----------|---------|--------|
-| `LARK` | lark-cli路径 | config.py | quiz_pull.py、quiz_push.py（import）、scripts/README.md（文字描述） | ✅ |
+| `LARK` | lark-cli路径（shutil.which动态查找+Windows回退） | config.py | quiz_pull.py、quiz_push.py（import）、scripts/README.md（文字描述） | ✅ |
 | `SKILL_DIR/PROJECT_DIR/SCRIPT_DIR` | 目录结构 | config.py | quiz_pull.py、quiz_push.py（import） | ✅ |
 | `BASE_TOKEN/TABLE_ID` | 飞书表格ID | config.py | quiz_pull.py、quiz_push.py（import） | ✅ |
 | `TODAY_QUIZ_FILE/PROMPT_FILE/GRADING_FILE` | 运行时文件路径 | config.py | quiz_pull.py、quiz_push.py（import）、SKILL.md路径表、grading-checklist.md | ✅ |
-| `CUMULATIVE` | 艾宾浩斯间隔数组[1,3,7,15,30] | config.py | quiz_pull.py、quiz_push.py（import）、02-grading-rules.md（轮次-间隔对照表）、SKILL.md（术语解释） | ⚠️ |
+| `CUMULATIVE` | 艾宾浩斯累计天数数组[1,3,7,15,30] | config.py | quiz_pull.py、quiz_push.py（import）、02-grading-rules.md（轮次-累计天数对照表）、SKILL.md（术语解释） | ⚠️ |
 | `LEVELS/LEVEL_ORDER` | 级别三元组+排序权重 | config.py | quiz_pull.py（import）、01-question-format.md、03-knowledge-ingest.md、question-checklist.md、quiz-paper.md模板 | ✅ |
 | `ONE_STAR_ACTIVE` | ★☆☆是否主动出题 | config.py | quiz_pull.py（import） | ✅ |
 | `TYPE_A_SOURCES/TYPE_B_SOURCES/ALL_SOURCES` | 来源标签5种分类 | config.py | quiz_pull.py、quiz_push.py（import）、SKILL.md、01-question-format.md、02-grading-rules.md、quiz-paper.md模板、出题指令.txt（脚本生成） | ✅ |
@@ -45,6 +45,7 @@
 | `DATE_FORMAT/DATE_FORMAT_DAY` | 日期格式串 | config.py | quiz_push.py（日期格式化）、quiz_pull.py（日期解析） | ✅ |
 | `FIELD_*`（19个） | 飞书多维表格字段名 | config.py | quiz_pull.py（读取解析）、quiz_push.py（写入更新）、content-map.md飞书字段表 | ✅ |
 | `GRADING_FIELD_*`（3个） | grading.json字段名 | config.py | quiz_push.py（解析批改结果）、grading-result.json模板 | ✅ |
+| `OUTPUT_QNO/OUTPUT_SOURCE_LABEL/OUTPUT_LEVEL` | today_quiz.json输出字段名（脚本自定义，非飞书原始字段） | config.py | quiz_pull.py（生成时写入）、quiz_push.py（读取批改时引用） | ✅ |
 | `QUIZ_ENDING` | 试卷结尾语 | config.py | quiz_pull.py（出题指令末尾）、01-question-format.md、quiz-paper.md模板 | ⚠️ |
 | `DOC_*/TEMPLATE_*/CHECKLIST_*` | 文档/模板/清单路径 | config.py | quiz_pull.py（动态读取checklist）、check_consistency.py | ✅ |
 
@@ -87,7 +88,7 @@
 | 规则项 | 主定义位置 | 关联位置 | 修改注意事项 |
 |-------|-----------|---------|------------|
 | A/B/C三类判定条件 | 02文档 + config.TYPE_A_SOURCES/TYPE_B_SOURCES | quiz_push.py（compute_push_patch）、SKILL.md步骤B | 来源标签与类型映射在config.py定义 |
-| 类型A：推进轮次规则 | 02文档 + quiz_push.py代码 | config.CUMULATIVE（间隔天数） | 修改间隔天数改config.CUMULATIVE |
+| 类型A：推进轮次规则 | 02文档 + quiz_push.py代码 | config.CUMULATIVE（累计天数） | 修改累计天数改config.CUMULATIVE |
 | 类型B：不推进轮次 | 02文档 + quiz_push.py代码 | | |
 | 类型C：答错归零+薄弱点 | 02文档 + quiz_push.py代码 | | |
 | FIX#1防回溯日期公式 | quiz_push.py代码 | 02文档（文字说明） | 修改公式需同步02文档；FIX#7修正了下标（CUMULATIVE[new_round]） |
