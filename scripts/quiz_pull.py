@@ -40,7 +40,7 @@ from config import (
     BASE_TOKEN, TABLE_ID, TODAY_QUIZ_FILE, PROMPT_FILE,
     CUMULATIVE, LEVEL_ORDER, LEVELS, ONE_STAR_ACTIVE,
     TYPE_A_SOURCES, TYPE_B_SOURCES, ALL_SOURCES, WEAK_SOURCES,
-    DEFAULT_MAX_QUESTIONS, MIN_QUESTIONS,
+    DEFAULT_MAX_QUESTIONS, MIN_QUESTIONS, MAX_REVIEW_QUESTIONS,
     RATIO_CHOICE, RATIO_FILL, RATIO_SHORT,
     DOC_QUESTION_FORMAT, DOC_GRADING_RULES, CHECKLIST_QUESTION,
     FILL_BLANK_PATTERN,
@@ -283,6 +283,7 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
       P3 — 新知识点     → 来源标签=TYPE_A_SOURCES[2]（⚪未测试且添加日期+1天=今天）
       P4 — 未到期巩固   → 来源标签=TYPE_B_SOURCES[0]（薄弱点=true且下次复习>今天，仅当题量<MIN_QUESTIONS时才出题，标🔥）
       P5 — 随机巩固     → 来源标签=TYPE_B_SOURCES[1]（题量仍<MIN_QUESTIONS时从学习中剩余KP补）
+    ⚠️ P4+P5合计不超过MAX_REVIEW_QUESTIONS=5题，即使到期题不足也不突破此上限
 
     输入参数：
         records — list[dict]，所有知识点列表（来自fetch_records()）；
@@ -371,6 +372,9 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
     batch_add(p3, SRC_NEW)
 
     # ── P4：未到期巩固（薄弱点未到期，仅当题量不足时才出题） ──
+    # 巩固题配额：P4+P5合计不超过MAX_REVIEW_QUESTIONS题
+    # review_start记录到期题（P1+P2+P3）数量，用于计算已用配额
+    review_start = len(result)
     p4 = [
         kp for kp in records
         if kp.get(FIELD_IS_WEAK) is True
@@ -379,10 +383,15 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
     ]
     if len(result) < MIN_QUESTIONS:
         p4.sort(key=level_sort_key)
-        batch_add(p4, SRC_WEAK_REVIEW, sort_by_level=False)
+        # P4逐题加入，检查巩固题配额
+        for kp in p4:
+            if len(result) - review_start >= MAX_REVIEW_QUESTIONS:
+                break
+            if not add_kp(kp, SRC_WEAK_REVIEW):
+                continue
 
-    # ── P5：随机巩固（若题量仍<MIN_QUESTIONS，从学习中/未测试剩余KP补） ──
-    if len(result) < MIN_QUESTIONS:
+    # ── P5：随机巩固（若题量仍<MIN_QUESTIONS且巩固题配额未满，从学习中/未测试剩余KP补） ──
+    if len(result) < MIN_QUESTIONS and len(result) - review_start < MAX_REVIEW_QUESTIONS:
         learning = [
             kp for kp in records
             if kp.get(FIELD_STATUS, "") in (STATUS_LEARNING, STATUS_UNTESTED)
@@ -401,7 +410,12 @@ def filter_today(records, today, max_n=DEFAULT_MAX_QUESTIONS):
             group_list = list(group)
             random.shuffle(group_list)
             shuffled.extend(group_list)
-        batch_add(shuffled, SRC_RANDOM, sort_by_level=False)
+        # P5逐题加入，检查巩固题配额
+        for kp in shuffled:
+            if len(result) - review_start >= MAX_REVIEW_QUESTIONS:
+                break
+            if not add_kp(kp, SRC_RANDOM):
+                continue
 
     src_count = Counter(r[OUTPUT_SOURCE_LABEL] for r in result)
     lvl_count = Counter(r[OUTPUT_LEVEL] for r in result)

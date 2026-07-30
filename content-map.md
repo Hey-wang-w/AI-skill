@@ -35,7 +35,8 @@
 | `STATUS_VALUES/STATUS_ICONS` | 状态元组+图标字典 | config.py | quiz_pull.py、quiz_push.py（import） | ✅ |
 | `QUESTION_TYPES/QUESTION_TYPE_LETTERS` | 题型三元组 | config.py | quiz_pull.py（import）、01-question-format.md、question-checklist.md | ✅ |
 | `DEFAULT_MAX_QUESTIONS` | 默认最大题数(20) | config.py | quiz_pull.py（argparse默认值）、SKILL.md | ⚠️ |
-| `MIN_QUESTIONS` | 触发P5的题量阈值(10) | config.py | quiz_pull.py（P5逻辑） | ✅ |
+| `MIN_QUESTIONS` | 触发P4/P5的题量阈值(10) | config.py | quiz_pull.py（P4/P5逻辑） | ✅ |
+| `MAX_REVIEW_QUESTIONS` | P4+P5巩固题合计上限(5) | config.py | quiz_pull.py（P4/P5配额检查） | ✅ |
 | `RATIO_CHOICE/FILL/SHORT` | 题型比例55/25/20 | config.py | quiz_pull.py（题型分配）、01-question-format.md（百分比描述）、出题指令.txt（脚本生成） | ⚠️ |
 | `WEAK_REMOVE_THRESHOLD` | 薄弱点解除阈值(2) | config.py | quiz_push.py（连续答对判断）、02-grading-rules.md（FIX#2说明）、SKILL.md | ⚠️ |
 | `FILL_BLANK_PATTERN/COUNT` | 填空题下划线格式 | config.py | quiz_pull.py（生成示例）、出题指令.txt（脚本生成）、01-question-format.md、question-checklist.md | ⚠️ |
@@ -78,7 +79,7 @@
 | 试卷头格式 | quiz-paper.md模板 + quiz_pull.py生成逻辑 | 01文档试卷头章节、SKILL.md | 修改试卷头需同步模板和quiz_pull.py |
 | **出题自检清单** | assets/checklists/question-checklist.md | quiz_pull.py（read_checklist动态读取）、出题指令.txt（脚本嵌入）、SKILL.md步骤A6 | ✅ 从config.CHECKLIST_QUESTION动态读取，修改checklist文件即可，无需改代码 |
 | QUIZ_ENDING结尾语 | config.QUIZ_ENDING | quiz-paper.md模板、01文档 | |
-| **出题优先级顺序** | quiz_pull.py filter_today()函数 | README.md优先级表、SKILL.md步骤A1、02文档FIX#6 | ⚠️ P0级规则！顺序为P1薄弱点到期→P2到期常规→P3新知识点→P4未到期巩固(仅题量不足时)→P5随机巩固(仍不足时)。P4/P5必须有`if len(result) < MIN_QUESTIONS`条件。修改顺序需同步README优先级表+check_consistency.py校验 |
+| **出题优先级顺序** | quiz_pull.py filter_today()函数 | README.md优先级表、SKILL.md步骤A1、02文档FIX#6 | ⚠️ P0级规则！顺序为P1薄弱点到期→P2到期常规→P3新知识点→P4未到期巩固(仅题量不足时)→P5随机巩固(仍不足时)。P4/P5必须有`if len(result) < MIN_QUESTIONS`条件。P4+P5合计不超过`MAX_REVIEW_QUESTIONS=5`题。修改顺序需同步README优先级表+check_consistency.py校验 |
 | **自我迭代-经验提取** | SKILL.md第十一章+流程E步骤E8 | best-practices.md（成功经验）、risk-alerts.md（失败教训）、quiz-experience.md（核心规则）、CHANGELOG.md（记录） | 流程E每次执行后触发E8。成功修复→BP-XXX入best-practices；失败/引入新问题→RISK-XXX入risk-alerts；新铁律→quiz-experience+SKILL铁律+check_consistency.py。新经验标注[观察期]，3次验证后改✅已固化 |
 
 ---

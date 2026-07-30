@@ -55,6 +55,7 @@ description: AI知识学习记忆与测验系统。触发关键词："开始测�
   python d:\AI\AI学习内容记忆测试\ai-quiz-system\scripts\quiz_pull.py
   ```
 - 脚本会自动从飞书拉取知识点、按优先级筛选、生成`today_quiz.json`和出题指令。
+- 脚本会自动控制巩固题数量：P4未到期巩固+P5随机巩固合计不超过`MAX_REVIEW_QUESTIONS=5`题，即使到期题不足也不突破此上限。
 - 等待脚本执行完成，确认输出"出题指令已保存"。
 
 **步骤A2：读取格式规范+经验预警**

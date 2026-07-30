@@ -421,6 +421,8 @@ def run_full_check():
               f"config.WEAK_REMOVE_THRESHOLD = 2（当前{config.WEAK_REMOVE_THRESHOLD}）")
         check(config.MIN_QUESTIONS == 10,
               f"config.MIN_QUESTIONS = 10（当前{config.MIN_QUESTIONS}）")
+        check(config.MAX_REVIEW_QUESTIONS == 5,
+              f"config.MAX_REVIEW_QUESTIONS = 5（当前{config.MAX_REVIEW_QUESTIONS}）")
         # 验证来源标签完整
         all_src = config.TYPE_A_SOURCES + config.TYPE_B_SOURCES
         check("薄弱点到期" in all_src and "到期常规" in all_src,
@@ -448,6 +450,8 @@ def run_full_check():
             'LOG_WEAK_CORRECT', 'LOG_WEAK_REVIEW_CORRECT', 'LOG_WEAK_WRONG',
             # 输出字段名常量（SSOT：today_quiz.json自定义字段）
             'OUTPUT_QNO', 'OUTPUT_SOURCE_LABEL', 'OUTPUT_LEVEL',
+            # 巩固题上限常量
+            'MAX_REVIEW_QUESTIONS',
         ]
         missing_constants = [c for c in required_constants if not hasattr(config, c)]
         check(len(missing_constants) == 0,
@@ -605,6 +609,9 @@ def run_full_check():
     # P4代码块中应包含 if len(result) < MIN_QUESTIONS 条件
     check('if len(result) < MIN_QUESTIONS' in pull_content,
           "quiz_pull.py P4未到期巩固包含MIN_QUESTIONS条件检查（仅在题量不足时才出题）")
+    # 【巩固题上限校验】P4+P5必须有MAX_REVIEW_QUESTIONS配额检查
+    check('MAX_REVIEW_QUESTIONS' in pull_content,
+          "quiz_pull.py P4/P5包含MAX_REVIEW_QUESTIONS配额检查（巩固题合计不超过5题）")
     print("\n🔮 [6/10] 扫描魔法值（硬编码字符串）...")
     magic_value_scan()
     print("   ✅ 魔法值扫描完成（已覆盖quiz_pull.py、quiz_push.py、reset_all.py的条件判断区域）")

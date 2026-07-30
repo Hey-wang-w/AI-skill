@@ -5,6 +5,33 @@
 
 ---
 
+## [4.8] - 2026-07-30
+
+### 变更等级：P1 - 新增巩固题数量上限（MAX_REVIEW_QUESTIONS=5）
+
+### 问题背景
+当到期题（P1薄弱点到期/P2到期常规/P3新知识点）不足MIN_QUESTIONS=10题时，系统会用P4未到期巩固和P5随机巩固补位。此前无上限，极端情况下可能出十几道巩固题。巩固题过多会稀释到期题的复习效果，且未到期知识点提前复习会干扰艾宾浩斯节奏。
+
+### 变更内容
+新增配置常量 `MAX_REVIEW_QUESTIONS = 5`，P4+P5合计出题数不超过此值，即使到期题严重不足也不突破。
+
+1. **config.py**：新增 `MAX_REVIEW_QUESTIONS = 5` 常量及注释
+2. **quiz_pull.py**：
+   - import 新增 `MAX_REVIEW_QUESTIONS`
+   - `filter_today()` P4阶段：记录`review_start`（到期题数量），逐题加入时检查 `len(result) - review_start >= MAX_REVIEW_QUESTIONS`
+   - P5阶段：增加 `len(result) - review_start < MAX_REVIEW_QUESTIONS` 前置条件，逐题加入时同样检查配额
+   - docstring 补充配额说明
+3. **content-map.md**：新增 `MAX_REVIEW_QUESTIONS` 常量条目，更新 `MIN_QUESTIONS` 描述和出题优先级顺序说明
+4. **README.md**：优先级表后新增P4+P5合计上限说明
+5. **SKILL.md**：步骤A1新增巩固题数量控制说明
+6. **02-grading-rules.md**：FIX#6说明补充巩固题上限
+7. **check_consistency.py**：required_constants新增 `MAX_REVIEW_QUESTIONS`，新增值校验和配额检查校验
+
+### 验证结果
+- ✅ check_consistency.py 全量校验：83项通过，0错误
+
+---
+
 ## [4.7] - 2026-07-27
 
 ### 变更等级：P1 - 7项代码质量与健壮性修复（FIX#9~#11 + 4项改进）
